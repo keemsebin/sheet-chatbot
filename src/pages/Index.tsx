@@ -4,18 +4,30 @@ import { ChatInterface } from '@/components/ChatInterface';
 import { SidePanel } from '@/components/SidePanel';
 import { Header } from '@/components/Header';
 import { ParsedSheetContent } from '@/utils/sheetParser';
+import { SheetGroup } from '@/types/sheetTypes';
 
 const Index = () => {
-  const [currentSheetTitle, setCurrentSheetTitle] = useState<string>('');
+  const [currentSheetTitle, setCurrentSheetTitle] = useState<string>('시트봇');
   const [sheetContent, setSheetContent] = useState<ParsedSheetContent>();
+  const [currentGroup, setCurrentGroup] = useState<SheetGroup | null>(null);
 
   const handleTitleUpdate = (title: string) => {
     setCurrentSheetTitle(title);
   };
 
   const handleSheetAdd = (sheet: any) => {
-    // 실제로는 여기서 구글 시트 API를 호출해서 데이터를 가져와야 함
     console.log('새 시트 추가됨:', sheet);
+  };
+
+  const handleGroupEnter = (group: SheetGroup) => {
+    setCurrentGroup(group);
+    // 그룹의 시트들을 기반으로 컨텍스트 설정
+    console.log(`${group.name} 그룹에 입장 - 대화 컨텍스트 초기화`);
+  };
+
+  const handleGroupExit = () => {
+    setCurrentGroup(null);
+    console.log('그룹에서 나감 - 기본 컨텍스트로 복원');
   };
 
   return (
@@ -25,8 +37,13 @@ const Index = () => {
         <SidePanel 
           onTitleUpdate={handleTitleUpdate}
           onSheetAdd={handleSheetAdd}
+          onGroupEnter={handleGroupEnter}
+          onGroupExit={handleGroupExit}
         />
-        <ChatInterface sheetContent={sheetContent} />
+        <ChatInterface 
+          sheetContent={sheetContent} 
+          currentGroup={currentGroup}
+        />
       </div>
     </div>
   );

@@ -1,9 +1,11 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { generateResponse, ParsedSheetContent } from '@/utils/sheetParser';
+import { SheetGroup } from '@/types/sheetTypes';
 
 interface Message {
   id: string;
@@ -14,20 +16,42 @@ interface Message {
 
 interface ChatInterfaceProps {
   sheetContent?: ParsedSheetContent;
+  currentGroup?: SheetGroup | null;
 }
 
-export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'bot',
-      content: '안녕하세요! 시트봇입니다. 연결된 구글 시트에 대해 무엇이든 물어보세요. 예를 들어 "이번 주 청소 담당이 누구야?" 같은 질문을 해보세요! 😊',
-      timestamp: new Date()
-    }
-  ]);
+export const ChatInterface = ({ sheetContent, currentGroup }: ChatInterfaceProps) => {
+  // 그룹별로 독립적인 대화 내역 관리
+  const [groupMessages, setGroupMessages] = useState<Record<string, Message[]>>({});
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // 현재 그룹의 메시지들 가져오기
+  const getCurrentMessages = (): Message[] => {
+    if (!currentGroup) {
+      return [{
+        id: 'welcome',
+        type: 'bot',
+        content: '안녕하세요! 시트봇입니다. 시트 그룹을 선택해서 각 그룹의 시트들과 대화를 시작해보세요! 😊',
+        timestamp: new Date()
+      }];
+    }
+
+    const groupId = currentGroup.id;
+    if (!groupMessages[groupId]) {
+      // 새 그룹에 처음 입장할 때의 환영 메시지
+      return [{
+        id: `welcome-${groupId}`,
+        type: 'bot',
+        content: `${currentGroup.name} 그룹에 오신 것을 환영합니다! 🎉\n\n이 그룹의 ${currentGroup.sheets.length}개 시트에 대해 무엇이든 물어보세요. 예를 들어:\n• "이번 주 일정 알려줘"\n• "청소 담당 누구야?"\n• "과제 제출일 언제야?"`,
+        timestamp: new Date()
+      }];
+    }
+
+    return groupMessages[groupId];
+  };
+
+  const messages = getCurrentMessages();
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -36,7 +60,7 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !currentGroup) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -45,14 +69,23 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const groupId = currentGroup.id;
+    const currentGroupMessages = groupMessages[groupId] || [];
+    const updatedMessages = [...currentGroupMessages, userMessage];
+    
+    setGroupMessages(prev => ({
+      ...prev,
+      [groupId]: updatedMessages
+    }));
+
     const currentInput = input;
     setInput('');
     setIsLoading(true);
 
-    // 실제 시트 내용을 기반으로 응답 생성
+    // 현재 그룹의 시트들을 기반으로 응답 생성
     setTimeout(() => {
-      const mockSheetContent: ParsedSheetContent = sheetContent || {
+      // 그룹의 시트들을 기반으로 한 Mock 데이터 생성
+      const mockSheetContent: ParsedSheetContent = {
         schedules: [
           { date: '7월 20일', event: '방학식', description: '여름방학 시작' },
           { date: '8월 25일', event: '개학', description: '2학기 시작' }
@@ -67,7 +100,9 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
         general: []
       };
 
-      const response = generateResponse(currentInput, mockSheetContent);
+      // 그룹 컨텍스트를 포함한 응답 생성
+      let response = generateResponse(currentInput, mockSheetContent);
+      response = `[${currentGroup.name} 그룹] ${response}`;
       
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -76,7 +111,10 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
         timestamp: new Date()
       };
       
-      setMessages(prev => [...prev, botResponse]);
+      setGroupMessages(prev => ({
+        ...prev,
+        [groupId]: [...(prev[groupId] || []), userMessage, botResponse]
+      }));
       setIsLoading(false);
     }, 1500);
   };
@@ -88,8 +126,36 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
     }
   };
 
+  const getPlaceholder = () => {
+    if (!currentGroup) {
+      return "시트 그룹을 선택해주세요...";
+    }
+    return `${currentGroup.name} 그룹에서 궁금한 것을 물어보세요...`;
+  };
+
+  const getSuggestions = () => {
+    if (!currentGroup) {
+      return ['시트 그룹을 먼저 선택해주세요'];
+    }
+    return ['이번 주 청소 누구야?', '방학식 언제야?', '과제 제출일 알려줘'];
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-gray-50">
+      {currentGroup && (
+        <div className="bg-white border-b border-gray-200 px-4 py-2">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            <span className="text-sm font-medium text-gray-700">
+              {currentGroup.name} 그룹에서 대화 중
+            </span>
+            <span className="text-xs text-gray-500">
+              시트 {currentGroup.sheets.length}개 연결됨
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 p-4">
         <ScrollArea className="h-full" ref={scrollAreaRef}>
           <div className="space-y-4 pb-4">
@@ -113,7 +179,7 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
                       : 'bg-white border border-gray-200 text-gray-900'
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  <p className="text-sm whitespace-pre-line">{message.content}</p>
                   <span className={`text-xs mt-1 block ${
                     message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
                   }`}>
@@ -140,7 +206,9 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
                 <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
                   <div className="flex items-center space-x-2">
                     <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                    <span className="text-sm text-gray-600">시트를 분석하고 있어요...</span>
+                    <span className="text-sm text-gray-600">
+                      {currentGroup?.name} 그룹의 시트를 분석하고 있어요...
+                    </span>
                   </div>
                 </div>
               </div>
@@ -155,27 +223,27 @@ export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="궁금한 것을 물어보세요... (예: 이번 주 청소 누구야?)"
+            placeholder={getPlaceholder()}
             className="flex-1"
-            disabled={isLoading}
+            disabled={isLoading || !currentGroup}
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || !currentGroup}
             className="bg-blue-500 hover:bg-blue-600"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {['이번 주 청소 누구야?', '방학식 언제야?', '과제 제출일 알려줘'].map((suggestion, index) => (
+          {getSuggestions().map((suggestion, index) => (
             <Button
               key={index}
               variant="outline"
               size="sm"
-              onClick={() => setInput(suggestion)}
+              onClick={() => currentGroup && setInput(suggestion)}
               className="text-xs"
-              disabled={isLoading}
+              disabled={isLoading || !currentGroup}
             >
               {suggestion}
             </Button>
