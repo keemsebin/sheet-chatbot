@@ -2,7 +2,11 @@
 import React from 'react';
 import { MessageSquare, Sheet } from 'lucide-react';
 
-export const Header = () => {
+interface HeaderProps {
+  sheetTitle?: string;
+}
+
+export const Header = ({ sheetTitle }: HeaderProps) => {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
       <div className="flex items-center justify-between">
@@ -11,8 +15,12 @@ export const Header = () => {
             <Sheet className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">시트봇</h1>
-            <p className="text-sm text-gray-500">구글 시트 정보 응답 서비스</p>
+            <h1 className="text-xl font-bold text-gray-900">
+              {sheetTitle ? `시트봇 - ${sheetTitle}` : '시트봇'}
+            </h1>
+            <p className="text-sm text-gray-500">
+              {sheetTitle ? `${sheetTitle} 정보 응답 서비스` : '구글 시트 정보 응답 서비스'}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-2">

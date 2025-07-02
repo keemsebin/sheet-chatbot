@@ -1,9 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { generateResponse, ParsedSheetContent } from '@/utils/sheetParser';
 
 interface Message {
   id: string;
@@ -12,7 +12,11 @@ interface Message {
   timestamp: Date;
 }
 
-export const ChatInterface = () => {
+interface ChatInterfaceProps {
+  sheetContent?: ParsedSheetContent;
+}
+
+export const ChatInterface = ({ sheetContent }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -24,14 +28,6 @@ export const ChatInterface = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  const mockResponses = [
-    "7월 20일 금요일이 방학식입니다! 📅",
-    "이번 주 청소 담당은 김세빈님과 박민수님입니다. 청소 구역은 3층 복도입니다. 🧹",
-    "다음 과제 제출일은 7월 25일까지입니다. 주제는 '프론트엔드 개발 프로젝트'입니다. 📝",
-    "출석률을 확인해보니 김세빈님은 92% 출석률을 보이고 있습니다. 👍",
-    "오늘 일정을 확인해보니 오후 2시에 팀 미팅이 예정되어 있습니다. 📋"
-  ];
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -50,17 +46,36 @@ export const ChatInterface = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
-    // 실제로는 여기서 시트 데이터를 분석하고 응답을 생성
+    // 실제 시트 내용을 기반으로 응답 생성
     setTimeout(() => {
+      const mockSheetContent: ParsedSheetContent = sheetContent || {
+        schedules: [
+          { date: '7월 20일', event: '방학식', description: '여름방학 시작' },
+          { date: '8월 25일', event: '개학', description: '2학기 시작' }
+        ],
+        cleaning: [
+          { week: '이번 주', team: '김세빈, 박민수', area: '3층 복도' },
+          { week: '다음 주', team: '이지은, 최동욱', area: '2층 교실' }
+        ],
+        assignments: [
+          { dueDate: '7월 25일', topic: '프론트엔드 개발 프로젝트', submitter: '전체' }
+        ],
+        general: []
+      };
+
+      const response = generateResponse(currentInput, mockSheetContent);
+      
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: mockResponses[Math.floor(Math.random() * mockResponses.length)],
+        content: response,
         timestamp: new Date()
       };
+      
       setMessages(prev => [...prev, botResponse]);
       setIsLoading(false);
     }, 1500);
