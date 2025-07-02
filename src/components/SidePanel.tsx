@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Plus, Sheet, ExternalLink, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { extractSheetTitle } from '@/utils/sheetParser';
 
 interface SheetConnection {
   id: string;
@@ -14,18 +14,23 @@ interface SheetConnection {
   lastUpdated: string;
 }
 
-export const SidePanel = () => {
+interface SidePanelProps {
+  onSheetAdd?: (sheet: SheetConnection) => void;
+  onTitleUpdate?: (title: string) => void;
+}
+
+export const SidePanel = ({ onSheetAdd, onTitleUpdate }: SidePanelProps) => {
   const [sheets, setSheets] = useState<SheetConnection[]>([
     {
       id: '1',
-      name: '팀 일정 관리',
+      name: '팀 일정 관리 시트',
       url: 'https://docs.google.com/spreadsheets/d/example1',
       status: 'connected',
       lastUpdated: '5분 전'
     },
     {
       id: '2',
-      name: '청소 구역 배정',
+      name: '청소 구역 배정표',
       url: 'https://docs.google.com/spreadsheets/d/example2',
       status: 'connected',
       lastUpdated: '1시간 전'
@@ -33,19 +38,37 @@ export const SidePanel = () => {
   ]);
   const [newSheetUrl, setNewSheetUrl] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddSheet = () => {
+  const handleAddSheet = async () => {
     if (newSheetUrl) {
-      const newSheet: SheetConnection = {
-        id: Date.now().toString(),
-        name: `시트 ${sheets.length + 1}`,
-        url: newSheetUrl,
-        status: 'connected',
-        lastUpdated: '방금 전'
-      };
-      setSheets([...sheets, newSheet]);
-      setNewSheetUrl('');
-      setShowAddForm(false);
+      setIsLoading(true);
+      try {
+        const title = await extractSheetTitle(newSheetUrl);
+        const newSheet: SheetConnection = {
+          id: Date.now().toString(),
+          name: title,
+          url: newSheetUrl,
+          status: 'connected',
+          lastUpdated: '방금 전'
+        };
+        
+        const updatedSheets = [...sheets, newSheet];
+        setSheets(updatedSheets);
+        
+        // 첫 번째 시트의 제목을 헤더에 업데이트
+        if (updatedSheets.length === 1) {
+          onTitleUpdate?.(title);
+        }
+        
+        onSheetAdd?.(newSheet);
+        setNewSheetUrl('');
+        setShowAddForm(false);
+      } catch (error) {
+        console.error('시트 추가 실패:', error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -79,20 +102,23 @@ export const SidePanel = () => {
                 value={newSheetUrl}
                 onChange={(e) => setNewSheetUrl(e.target.value)}
                 className="text-sm"
+                disabled={isLoading}
               />
               <div className="flex space-x-2">
                 <Button 
                   onClick={handleAddSheet} 
                   size="sm" 
                   className="flex-1 bg-green-500 hover:bg-green-600"
+                  disabled={isLoading}
                 >
-                  연결
+                  {isLoading ? '연결 중...' : '연결'}
                 </Button>
                 <Button 
                   onClick={() => setShowAddForm(false)} 
                   variant="outline" 
                   size="sm"
                   className="flex-1"
+                  disabled={isLoading}
                 >
                   취소
                 </Button>
