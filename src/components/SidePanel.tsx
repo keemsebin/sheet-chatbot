@@ -18,6 +18,7 @@ interface SidePanelProps {
 }
 
 export const SidePanel = ({ onSheetAdd, onTitleUpdate }: SidePanelProps) => {
+  const [selectedGroup, setSelectedGroup] = useState<SheetGroup | null>(null);
   const [sheets, setSheets] = useState<SheetConnection[]>([
     {
       id: '1',
@@ -142,6 +143,9 @@ export const SidePanel = ({ onSheetAdd, onTitleUpdate }: SidePanelProps) => {
 
   const handleDeleteGroup = (groupId: string) => {
     setSheetGroups(sheetGroups.filter(group => group.id !== groupId));
+    if (selectedGroup?.id === groupId) {
+      setSelectedGroup(null);
+    }
   };
 
   const handleTogglePublic = (groupId: string, isPublic: boolean) => {
@@ -151,8 +155,12 @@ export const SidePanel = ({ onSheetAdd, onTitleUpdate }: SidePanelProps) => {
   };
 
   const handleGroupSelect = (group: SheetGroup) => {
+    setSelectedGroup(group);
     console.log('선택된 그룹:', group);
-    // 그룹 선택 시 해당 그룹의 시트들을 활성화
+    // 그룹 선택 시 해당 그룹의 첫 번째 시트 제목을 헤더에 설정
+    if (group.sheets.length > 0) {
+      onTitleUpdate?.(group.name);
+    }
   };
 
   const handleTemplateUse = (template: SheetGroup) => {
@@ -191,13 +199,13 @@ export const SidePanel = ({ onSheetAdd, onTitleUpdate }: SidePanelProps) => {
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
-      <Tabs defaultValue="sheets" className="h-full">
+      <Tabs defaultValue="groups" className="h-full">
         <TabsList className="grid w-full grid-cols-4 sticky top-0 z-10">
-          <TabsTrigger value="sheets" className="text-xs">
-            <Sheet className="w-3 h-3" />
-          </TabsTrigger>
           <TabsTrigger value="groups" className="text-xs">
             <Users className="w-3 h-3" />
+          </TabsTrigger>
+          <TabsTrigger value="sheets" className="text-xs">
+            <Sheet className="w-3 h-3" />
           </TabsTrigger>
           <TabsTrigger value="templates" className="text-xs">
             <Search className="w-3 h-3" />
@@ -208,6 +216,148 @@ export const SidePanel = ({ onSheetAdd, onTitleUpdate }: SidePanelProps) => {
         </TabsList>
 
         <div className="p-4">
+          <TabsContent value="groups" className="mt-0">
+            {!selectedGroup ? (
+              <>
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-l-blue-500">
+                  <h3 className="font-medium text-blue-900 mb-2">🚀 시작하기</h3>
+                  <p className="text-sm text-blue-800">
+                    시트 그룹을 선택하거나 새로 만들어서 작업을 시작하세요.
+                  </p>
+                </div>
+                <SheetGroupManager
+                  groups={sheetGroups}
+                  onCreateGroup={handleCreateGroup}
+                  onDeleteGroup={handleDeleteGroup}
+                  onTogglePublic={handleTogglePublic}
+                  onGroupSelect={handleGroupSelect}
+                />
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedGroup(null)}
+                    className="text-gray-600"
+                  >
+                    ← 그룹 목록으로
+                  </Button>
+                </div>
+                
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      <h3 className="font-semibold text-blue-900">{selectedGroup.name}</h3>
+                    </div>
+                    {selectedGroup.description && (
+                      <p className="text-sm text-blue-700">{selectedGroup.description}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-700">그룹 내 시트 ({selectedGroup.sheets.length}개)</h4>
+                    <Button
+                      onClick={() => setShowAddForm(!showAddForm)}
+                      size="sm"
+                      className="bg-blue-500 hover:bg-blue-600"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      시트 추가
+                    </Button>
+                  </div>
+
+                  {showAddForm && (
+                    <Card className="border-blue-200">
+                      <CardContent className="p-3 space-y-3">
+                        <Input
+                          placeholder="구글 시트 공유 링크를 입력하세요"
+                          value={newSheetUrl}
+                          onChange={(e) => setNewSheetUrl(e.target.value)}
+                          className="text-sm"
+                          disabled={isLoading}
+                        />
+                        <div className="flex space-x-2">
+                          <Button 
+                            onClick={handleAddSheet} 
+                            size="sm" 
+                            className="flex-1 bg-green-500 hover:bg-green-600"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? '연결 중...' : '연결'}
+                          </Button>
+                          <Button 
+                            onClick={() => setShowAddForm(false)} 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1"
+                            disabled={isLoading}
+                          >
+                            취소
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {selectedGroup.sheets.map((sheet) => (
+                    <Card key={sheet.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Sheet className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <h3 className="font-medium text-gray-900 truncate">{sheet.name}</h3>
+                            </div>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Badge 
+                                variant={sheet.status === 'connected' ? 'default' : 'destructive'}
+                                className="text-xs"
+                              >
+                                {sheet.status === 'connected' ? '연결됨' : '오류'}
+                              </Badge>
+                              <span className="text-xs text-gray-500">{sheet.lastUpdated}</span>
+                            </div>
+                          </div>
+                          <div className="flex space-x-1 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(sheet.url, '_blank')}
+                              className="p-1 h-auto"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveSheet(sheet.id)}
+                              className="p-1 h-auto text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {selectedGroup.sheets.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Sheet className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-sm">이 그룹에는 아직 시트가 없습니다.</p>
+                      <p className="text-xs">위 버튼을 눌러 시트를 추가해보세요.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="sheets" className="mt-0 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">연결된 시트</h2>
@@ -311,16 +461,6 @@ export const SidePanel = ({ onSheetAdd, onTitleUpdate }: SidePanelProps) => {
                 <li>• "과제 제출일 알려줘"</li>
               </ul>
             </div>
-          </TabsContent>
-
-          <TabsContent value="groups" className="mt-0">
-            <SheetGroupManager
-              groups={sheetGroups}
-              onCreateGroup={handleCreateGroup}
-              onDeleteGroup={handleDeleteGroup}
-              onTogglePublic={handleTogglePublic}
-              onGroupSelect={handleGroupSelect}
-            />
           </TabsContent>
 
           <TabsContent value="templates" className="mt-0">
