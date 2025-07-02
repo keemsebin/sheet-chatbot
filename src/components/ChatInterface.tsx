@@ -71,11 +71,11 @@ export const ChatInterface = ({ sheetContent, currentGroup }: ChatInterfaceProps
 
     const groupId = currentGroup.id;
     const currentGroupMessages = groupMessages[groupId] || [];
-    const updatedMessages = [...currentGroupMessages, userMessage];
     
+    // 사용자 메시지 먼저 추가
     setGroupMessages(prev => ({
       ...prev,
-      [groupId]: updatedMessages
+      [groupId]: [...currentGroupMessages, userMessage]
     }));
 
     const currentInput = input;
@@ -111,9 +111,10 @@ export const ChatInterface = ({ sheetContent, currentGroup }: ChatInterfaceProps
         timestamp: new Date()
       };
       
+      // 봇 응답만 추가 (사용자 메시지는 이미 추가됨)
       setGroupMessages(prev => ({
         ...prev,
-        [groupId]: [...(prev[groupId] || []), userMessage, botResponse]
+        [groupId]: [...(prev[groupId] || []), botResponse]
       }));
       setIsLoading(false);
     }, 1500);

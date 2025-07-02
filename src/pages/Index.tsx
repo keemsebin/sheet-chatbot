@@ -40,10 +40,23 @@ const Index = () => {
           onGroupEnter={handleGroupEnter}
           onGroupExit={handleGroupExit}
         />
-        <ChatInterface 
-          sheetContent={sheetContent} 
-          currentGroup={currentGroup}
-        />
+        {/* 시트 그룹이 선택되지 않았을 때만 채팅 인터페이스 표시 */}
+        {!currentGroup && (
+          <ChatInterface 
+            sheetContent={sheetContent} 
+            currentGroup={currentGroup}
+          />
+        )}
+        {/* 시트 그룹이 선택되었을 때는 빈 공간 또는 그룹 정보 표시 */}
+        {currentGroup && (
+          <div className="flex-1 bg-gray-50 flex items-center justify-center">
+            <div className="text-center text-gray-500">
+              <h2 className="text-xl font-semibold mb-2">{currentGroup.name}</h2>
+              <p className="text-sm">그룹 작업 공간이 활성화되었습니다.</p>
+              <p className="text-xs mt-1">왼쪽 패널에서 시트를 관리하세요.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
